@@ -21,6 +21,10 @@
 #include "../../pwr.h"
 #include "../horus/board_horus.h"
 
+uint32_t shutdownRequest;          // Stores intentional shutdown to avoid reboot loop
+uint32_t shutdownReason;           // Used for detecting unexpected reboots regardless of reason
+uint32_t powerupReason __NOINIT;   // Stores power up reason beyond initialization for emergency mode activation
+
 void pwrInit()
 {
   GPIO_InitTypeDef GPIO_InitStructure;
@@ -56,6 +60,8 @@ void pwrInit()
 void pwrOn()
 {
   GPIO_SetBits(PWR_GPIO, PWR_ON_GPIO_PIN);
+  shutdownRequest = NO_SHUTDOWN_REQUEST;
+  shutdownReason = DIRTY_SHUTDOWN;
 }
 
 void pwrOff()
@@ -73,6 +79,8 @@ void pwrOff()
   // Shutdown the Haptic
   hapticDone();
 
+  shutdownRequest = SHUTDOWN_REQUEST;
+  shutdownReason = NORMAL_POWER_OFF;
   GPIO_ResetBits(PWR_GPIO, PWR_ON_GPIO_PIN);
 }
 
@@ -96,7 +104,7 @@ void pwrResetHandler()
   //
   // If we were to turn it on here indiscriminately, then the radio can go into the 
   // power on/off loop after being powered off by the user. (issue #2790)
-  if (WAS_RESET_BY_WATCHDOG_OR_SOFTWARE()) {
+  if (UNREQUESTED_SHUTDOWN()) {
     GPIO_InitTypeDef GPIO_InitStructure;
     GPIO_InitStructure.GPIO_Pin = PWR_ON_GPIO_PIN;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -104,6 +112,10 @@ void pwrResetHandler()
     GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
     GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(PWR_GPIO, &GPIO_InitStructure);
+
+    if (shutdownReason == DIRTY_SHUTDOWN) {
+      powerupReason = DIRTY_SHUTDOWN;
+    }
 
     pwrOn();
   }

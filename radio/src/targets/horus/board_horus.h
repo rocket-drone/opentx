@@ -200,6 +200,11 @@ extern int32_t rotencValue;
 void checkRotaryEncoder(void);
 
 // WDT driver
+extern uint32_t powerupReason;
+#define SHUTDOWN_REQUEST                      0xDEADBEEF
+#define NO_SHUTDOWN_REQUEST                   ~SHUTDOWN_REQUEST
+#define DIRTY_SHUTDOWN                        0xCAFEDEAD
+#define NORMAL_POWER_OFF                      ~DIRTY_SHUTDOWN
 #if defined(SIMU)
 #define WAS_RESET_BY_WATCHDOG()               (false)
 #define WAS_RESET_BY_SOFTWARE()               (false)
@@ -216,6 +221,7 @@ void watchdogInit(unsigned int duration);
 #endif
 #define WAS_RESET_BY_WATCHDOG()               (RCC->CSR & (RCC_CSR_WDGRSTF | RCC_CSR_WWDGRSTF))
 #define WAS_RESET_BY_SOFTWARE()               (RCC->CSR & RCC_CSR_SFTRSTF)
+#define UNREQUESTED_SHUTDOWN()                (shutdownRequest != SHUTDOWN_REQUEST)
 #define WAS_RESET_BY_WATCHDOG_OR_SOFTWARE()   (RCC->CSR & (RCC_CSR_WDGRSTF | RCC_CSR_WWDGRSTF | RCC_CSR_SFTRSTF))
 #endif
 
@@ -256,7 +262,7 @@ void pwrOff(void);
 void pwrResetHandler(void);
 uint32_t pwrPressed(void);
 uint32_t pwrPressedDuration(void);
-#define UNEXPECTED_SHUTDOWN()   (WAS_RESET_BY_WATCHDOG())
+#define UNEXPECTED_SHUTDOWN()   (powerupReason == DIRTY_SHUTDOWN)
 
 // Led driver
 void ledOff(void);
